@@ -1,0 +1,82 @@
+name: 'AI Code Reviewer'
+description: '🤖 AI-powered code review for pull requests. Supports 15+ languages with security, performance, and quality analysis.'
+
+branding:
+  icon: 'check-circle'
+  color: 'blue'
+
+inputs:
+  openai-api-key:
+    description: 'OpenAI API key (or any compatible API)'
+    required: true
+  model:
+    description: 'AI model to use for reviews'
+    required: false
+    default: 'gpt-4o'
+  severity:
+    description: 'Minimum severity to report (info, low, medium, high, critical)'
+    required: false
+    default: 'low'
+  categories:
+    description: 'Comma-separated review categories'
+    required: false
+    default: 'quality,security,performance,style,bug,maintainability'
+  fail-on:
+    description: 'Fail the workflow on: never, critical, always (if below threshold)'
+    required: false
+    default: 'never'
+  fail-threshold:
+    description: 'Minimum score (0-100) to pass when fail-on is set'
+    required: false
+    default: '50'
+  config-file:
+    description: 'Path to custom config file'
+    required: false
+    default: ''
+  api-base:
+    description: 'Custom API base URL (for OpenAI-compatible providers)'
+    required: false
+    default: 'https://api.openai.com/v1'
+
+outputs:
+  score:
+    description: 'Overall review score (0-100)'
+  issues:
+    description: 'Total number of issues found'
+  critical:
+    description: 'Number of critical issues'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install ai-code-reviewer
+      shell: bash
+      run: pip install ai-code-reviewer
+
+    - name: Run AI Code Review
+      shell: bash
+      env:
+        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+        OPENAI_API_BASE: ${{ inputs.api-base }}
+        AI_REVIEWER_MODEL: ${{ inputs.model }}
+        GITHUB_TOKEN: ${{ github.token }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+      run: |
+        CONFIG_ARGS=""
+        if [ -n "${{ inputs.config-file }}" ]; then
+          CONFIG_ARGS="--config ${{ inputs.config-file }}"
+        fi
+
+        CATEGORIES=$(echo "${{ inputs.categories }}" | tr ',' '\n' | sed 's/^/--category /' | tr '\n' ' ')
+
+        ai-code-reviewer pr \
+          --model "${{ inputs.model }}" \
+          --format markdown \
+          --severity "${{ inputs.severity }}" \
+          $CONFIG_ARGS \
+          $CATEGORIES

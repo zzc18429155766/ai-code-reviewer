@@ -1,0 +1,40 @@
+name: AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    # Only run on PR events, or on issue comments that contain "review"
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request &&
+       contains(github.event.comment.body, '/review'))
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: AI Code Review
+        uses: zzc18429155766/ai-code-reviewer@v2
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          model: 'gpt-4o'
+          severity: 'low'
+          categories: 'quality,security,performance,style,bug,maintainability'
+          fail-on: 'critical'
+          fail-threshold: '50'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
